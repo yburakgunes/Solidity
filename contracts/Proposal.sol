@@ -53,30 +53,32 @@ contract ProposalContract {
         proposal_history[_counter.current()] = Proposal(title ,_description, 0, 0, 0, _total_vote_to_end, false, true);
     }
 
-    function vote(uint8 choice) external active newVoter(msg.sender) {
-        Proposal storage proposal = proposal_history[_counter.current()];
-        uint256 total_vote = proposal.approve + proposal.reject + proposal.pass;
+    function vote(uint8 choice) external active newVoter(msg.sender){
+    Proposal storage proposal = proposal_history[_counter.current()];
+    uint256 total_vote = proposal.approve + proposal.reject + proposal.pass;
 
-        voted_addresses.push(msg.sender);
+    voted_addresses.push(msg.sender);
 
-        require(choice == 1 || choice == 2 || choice == 0, "Invalid choice");
-
-        if (choice == 1) {
-            proposal.approve += 1;
-        } else if (choice == 2) {
-            proposal.reject += 1;
-        } else if (choice == 0) {
-            proposal.pass += 1;
-        }
-
+    if (choice == 1) {
+        proposal.approve += 1;
         proposal.current_state = calculateCurrentState();
+    } else if (choice == 2) {
+        proposal.reject += 1;
+        proposal.current_state = calculateCurrentState();
+    } else if (choice == 0) {
+        proposal.pass += 1;
+        proposal.current_state = calculateCurrentState();
+    }
 
+    if ((proposal.total_vote_to_end - total_vote == 1) && (choice == 1 || choice == 2 || choice == 0)) {
+        proposal.is_active = false;
+        voted_addresses = [owner];
+    }
+}  
 
-        if (proposal.total_vote_to_end == total_vote) {
-            proposal.is_active = false;
-        }
-    }   
-
+    function terminateProposal() external onlyOwner active {
+        proposal_history[_counter.current()].is_active = false;
+    }
 
     function calculateCurrentState() private view returns(bool) {
         Proposal storage proposal = proposal_history[_counter.current()];
@@ -96,12 +98,7 @@ contract ProposalContract {
             return proposal.current_state; 
         }
     }
-
-
-    function terminateProposal() external onlyOwner active {
-        proposal_history[_counter.current()].is_active = false;
-    }
-
+    
     function isVoted(address _address) public view returns (bool) {
         for (uint i = 0; i < voted_addresses.length; i++) {
             if (voted_addresses[i] == _address) {
